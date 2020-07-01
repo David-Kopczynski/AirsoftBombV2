@@ -1,0 +1,14 @@
+Need to buy
+1x	LED red
+1x 	Clinch / RCA cables https://www.amazon.de/Valueline-VLVP24305B50-AV-Verl%C3%A4ngerungskabel-Stecker-schwarz/dp/B00I7Y5GZK/ref=sr_1_10?dchild=1&keywords=3+rca+female&qid=1593602895&sr=8-10
+1x	Moosgummi 
+	+Olive folie darüber
+	+Klebeband darüber
+	+Sticker darauf 
+2x	Weiße Kabelbinder
+1x	Red toggle switch mit cover
+	+Am Batteriefach welches intern mit dem Arduino und der Swtich geschaltet wird
+2x 	Kapazitoren
+	Rote und Schwarze Kabel als Verbindung
+1x	Breitband Kabel 
+2x	Blaue kabel schnellklemmen
