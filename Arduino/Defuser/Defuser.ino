@@ -17,9 +17,9 @@ unsigned int charIndex = 1;
 
 
 void setup() {
-  
+
   // Initial
-  Serial.begin(9600); 
+  Serial.begin(9600);
 
   // Turn on the blacklight and print a message.
   lcd.begin();
@@ -33,7 +33,7 @@ void setup() {
 void loop() {
 
   // Get Data
-  while (Serial.available()) {
+  while (Serial.available() > 0) {
 
     String input = Serial.readString();
 
@@ -47,7 +47,7 @@ void loop() {
     else if (duration == 0) {
       duration = input.toInt();
 
-      // Set start values 
+      // Set start values
       startTime = millis();
 
       // Write placeholder
@@ -61,11 +61,20 @@ void loop() {
   // Display Code after time
   if (startTime && duration && charIndex <= code.length() && duration * charIndex / code.length() < millis() - startTime) {
 
-    // Display next
-    lcd.setCursor(charIndex -1, 1);
-    lcd.print(code[charIndex -1]);
+    // Request write -- wait for response
+    Serial.write("Request ping");
+    while (!Serial.available());
+    while (Serial.available()) {
 
-    charIndex += 1;
+      if (Serial.readString() == "Request ping") {
+
+        // Display next
+        lcd.setCursor(charIndex - 1, 1);
+        lcd.print(code[charIndex - 1]);
+
+        charIndex += 1;
+      }
+    }
   }
 }
 
