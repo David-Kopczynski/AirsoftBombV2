@@ -101,11 +101,17 @@ uint8_t getCode = 1;
 uint8_t getTime = 2;
 uint8_t ping = 3; 
 
+uint8_t serialConnected = 9;
+
 
 void setup() {
 
   // Initial
-  Serial.begin(9600);
+  Serial.begin(2000000);
+
+  // Serial communication active 
+  pinMode(serialConnected, OUTPUT);
+  digitalWrite(serialConnected, HIGH);
 
   // Initial hardware
   pinMode(speakerPinDigital, OUTPUT);

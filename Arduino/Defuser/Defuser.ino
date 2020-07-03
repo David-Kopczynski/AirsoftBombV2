@@ -7,6 +7,8 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 /* ---------- Functions ---------- */
 void updateDisplay(String text, uint8_t line = 0);
 uint32_t readSerialLong();
+void checkConnection();
+void reboot();
 
 
 /* ---------- Runtime ---------- */
@@ -21,22 +23,35 @@ uint8_t getCode = 1;
 uint8_t getTime = 2;
 uint8_t ping = 3;
 
+uint8_t serialConnected = 2;
+bool restartOnConnected = false;
+
 
 void setup() {
 
   // Initial
-  Serial.begin(9600);
+  Serial.begin(2000000);
 
+  // Serial communication active 
+  pinMode(serialConnected, INPUT);
+  
   // Turn on the blacklight and print a message.
   lcd.begin();
   updateDisplay("Defuse Code:");
   lcd.backlight();
-
-  // Request communication
-  Serial.write(getCode);
 }
 
 void loop() {
+
+  // Check connection status
+  checkConnection();
+
+  // Send starting data -- Request communication
+  if (code.length() == 0 && digitalRead(serialConnected)) {
+    
+    Serial.write(getCode);
+    while (!Serial.available());
+  }
 
   // Get Data
   if (Serial.available()) {
@@ -65,18 +80,17 @@ void loop() {
   // Display Code after time   
   if (startTime > 0 && charIndex <= code.length() && (float)(duration * charIndex / code.length()) < millis() - startTime) {
 
-    // Request write -- wait for response
+    // Request write -- wait for response OR rebbot if disconnected
     Serial.write(ping);
-    while (!Serial.available());
+    while (!Serial.available() && code.length() != 0) checkConnection();
     
-    if (Serial.read() == ping) {
+    if (code.length() != 0 && Serial.read() == ping) {
+      // Display next
+      lcd.setCursor(charIndex - 1, 1);
+      lcd.print(code[charIndex - 1]);
 
-        // Display next
-        lcd.setCursor(charIndex - 1, 1);
-        lcd.print(code[charIndex - 1]);
-
-        charIndex += 1;
-     }
+      charIndex += 1;   
+    }
   }
 
   // Stop arduino
@@ -97,11 +111,25 @@ uint32_t readSerialLong() {
   
   while (Serial.available() && index < 4) {
     input[index] = Serial.read();
-
-    // Wait for next byte
     index++;
-    delay(2);
   }
 
   return input[0] + (input[1] << 8) + (input[2] << 16) + (input[3] << 24);
+}
+
+void checkConnection() {
+  bool currentConnection = digitalRead(serialConnected);
+
+  if (restartOnConnected && currentConnection) reboot();
+  else if (!currentConnection) restartOnConnected = true;
+}
+
+void reboot() {
+
+  // Resets data and starts again
+  code = "";
+  duration = 0;
+  startTime = 0;
+  charIndex = 1;
+  restartOnConnected = false;
 }
