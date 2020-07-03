@@ -25,6 +25,7 @@ uint8_t ping = 3;
 
 uint8_t serialConnected = 2;
 bool restartOnConnected = false;
+bool currentConnection = false;
 
 
 void setup() {
@@ -47,10 +48,12 @@ void loop() {
   checkConnection();
 
   // Send starting data -- Request communication
-  if (code.length() == 0 && digitalRead(serialConnected)) {
+  if (code.length() == 0 && currentConnection) {
     
-    Serial.write(getCode);
-    while (!Serial.available());
+    while (!Serial.available()) {
+      Serial.write(getCode);  
+      delay(1);
+    }
   }
 
   // Get Data
@@ -118,7 +121,7 @@ uint32_t readSerialLong() {
 }
 
 void checkConnection() {
-  bool currentConnection = digitalRead(serialConnected);
+  currentConnection = digitalRead(serialConnected);
 
   if (restartOnConnected && currentConnection) reboot();
   else if (!currentConnection) restartOnConnected = true;
@@ -132,4 +135,5 @@ void reboot() {
   startTime = 0;
   charIndex = 1;
   restartOnConnected = false;
+  currentConnection = false;
 }

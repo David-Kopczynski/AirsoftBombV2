@@ -144,8 +144,12 @@ void loop() {
   }
 
 
+  // Clear all dump data
+  while (!started && Serial.available()) Serial.read();
+
+
   // Write data for defuser
-  while (code.length() > 0 && Serial.available()) {
+  while (Serial.available()) {
 
     uint8_t input = Serial.read();
 

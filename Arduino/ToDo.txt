@@ -1,1 +1,3 @@
-pin on cable to tell arduino its been unpluged
+common bugs
+	during startup having the defuser mounted -> data comes in multiple times overloading the screen
+	
