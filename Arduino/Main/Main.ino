@@ -23,7 +23,7 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 /* ---------- Tones ---------- */
 #include "src/PCM/PCM.h" // Changed pin to DIGITAL 10
-int speakerPinDigital = 10;
+uint8_t speakerPinDigital = 10;
 
 // Sound Data
 const unsigned char terroristsWin[] PROGMEM = {
@@ -39,27 +39,28 @@ const unsigned char bombDefused[] PROGMEM = {
 };
 
 // Beeps
-int bombBeep = 3000;
-int bombBeepWait = 1000;
-int bombBeepDuration = 100;
+uint16_t bombBeep = 3000;
+uint16_t bombBeepWait = 1000;
+uint16_t bombBeepDuration = 100;
 
-int keyBeep = 500;
-int keyBeepDuration = 10;
+uint16_t keyBeep = 500;
+uint16_t keyBeepDuration = 10;
 
-int wrongBeep = 100;
-int wrongBeepDuration = 500;
+uint16_t wrongBeep = 100;
+uint16_t wrongBeepDuration = 500;
 
 // Waiter value
-long waitForBeep = 0;
+int32_t waitForBeep = 0;
 String waitForBeepType = "";
 
 
 /* ---------- Functions ---------- */
-void updateDisplay(String text, int line);
+void updateDisplay(String text, uint8_t line);
 void plantBomb();
 void tryDefuseBomb();
 void explodeBomb();
 void toneWait(String type);
+void writeSerialLong(uint32_t data);
 
 
 /* ---------- Runtime ---------- */
@@ -72,12 +73,12 @@ String printDisplay = "";
 uint8_t maxLength = 16;
 
 // Inputs
-unsigned long timer = 40000;
-unsigned long defuseTimer = 3000;
+uint32_t timer = 40000;
+uint32_t defuseTimer = 3000;
 String code; // Set during initialization
 
 // Static
-unsigned long waitForFirstBeep = 2000;
+uint32_t waitForFirstBeep = 2000;
 
 // Speedosft settings
 uint8_t speedSoftCodeLength = 6;
@@ -86,14 +87,19 @@ bool isSpeedsoft = false;
 bool speedsoftButton = false;
 
 // Game Data -- fails
-unsigned int fails = 0;
-int maxFails = 1;
-unsigned long failPenalty = 0;
+uint8_t fails = 0;
+int8_t maxFails = 1;
+uint32_t failPenalty = 0;
 
 // Game Data -- time
-unsigned long startTime;
-unsigned long lastMillis = millis();
-unsigned long deltaBeep = 0;
+uint32_t startTime;
+uint32_t lastMillis = millis();
+uint32_t deltaBeep = 0;
+
+// Serial communication
+uint8_t getCode = 1;
+uint8_t getTime = 2;
+uint8_t ping = 3; 
 
 
 void setup() {
@@ -118,10 +124,10 @@ void loop() {
   // Important runtimes
   char keyPress = keypad.getKey();
 
-  unsigned long deltaTime = millis() - lastMillis;
+  uint32_t deltaTime = millis() - lastMillis;
   lastMillis = millis();
 
-  unsigned long timerCounting = millis() - startTime;
+  uint32_t timerCounting = millis() - startTime;
 
 
   // Reset wait for tones
@@ -133,25 +139,18 @@ void loop() {
 
 
   // Write data for defuser
-  while (code.length() > 0 && Serial.available() > 0) {
+  while (code.length() > 0 && Serial.available()) {
 
-    String input = Serial.readString();
+    uint8_t input = Serial.read();
 
-    if (input == "Request code") {
+    if (input == getCode) {
       char* buf = (char*) malloc(sizeof(char) * code.length() + 1);
       code.toCharArray(buf, code.length() + 1);
 
       Serial.write(buf);
     }
-    else if (input == "Request time") {
-      String strDefTimer = String(defuseTimer);
-
-      char* buf = (char*) malloc(sizeof(char) * strDefTimer.length() + 1);
-      strDefTimer.toCharArray(buf, strDefTimer.length() + 1);
-
-      Serial.write(buf);
-    }
-    else if (input == "Request ping") Serial.write("Request ping");
+    else if (input == getTime) writeSerialLong(defuseTimer);
+    else if (input == ping) Serial.write(ping);
   }
 
 
@@ -299,7 +298,7 @@ void loop() {
 }
 
 
-void updateDisplay(String text, int line) {
+void updateDisplay(String text, uint8_t line) {
   lcd.setCursor(0, line);
 
   while (text.length() < 16) text += " ";
@@ -384,4 +383,14 @@ void toneWait(String type) {
     waitForBeep = wrongBeepDuration;
     waitForBeepType = "Wrong";
   }
+}
+
+void writeSerialLong(uint32_t data) {
+  byte buf[4];
+  buf[0] = data & 255;
+  buf[1] = (data >> 8)  & 255;
+  buf[2] = (data >> 16) & 255;
+  buf[3] = (data >> 24) & 255;
+
+  Serial.write(buf, sizeof(buf));
 }

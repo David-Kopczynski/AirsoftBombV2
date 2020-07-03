@@ -5,15 +5,21 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 
 /* ---------- Functions ---------- */
-void updateDisplay(String text, int line = 0);
+void updateDisplay(String text, uint8_t line = 0);
+uint32_t readSerialLong();
 
 
 /* ---------- Runtime ---------- */
 String code;
-unsigned long duration;
+uint32_t duration;
 
-unsigned long startTime;
-unsigned int charIndex = 1;
+uint32_t startTime;
+uint8_t charIndex = 1;
+
+// Serial communication
+uint8_t getCode = 1;
+uint8_t getTime = 2;
+uint8_t ping = 3;
 
 
 void setup() {
@@ -27,60 +33,75 @@ void setup() {
   lcd.backlight();
 
   // Request communication
-  Serial.write("Request code");
+  Serial.write(getCode);
 }
 
 void loop() {
 
   // Get Data
-  while (Serial.available() > 0) {
-
-    String input = Serial.readString();
+  if (Serial.available()) {
 
     // Get code
     if (code.length() == 0) {
-      code = input;
+      code = Serial.readString();
 
       // Next request
-      Serial.write("Request time");
+      Serial.write(getTime);
     }
     else if (duration == 0) {
-      duration = input.toInt();
+      duration = readSerialLong();
 
       // Set start values
       startTime = millis();
 
       // Write placeholder
-      for (int i = 0; i < code.length(); i++) {
+      for (uint8_t i = 0; i < code.length(); i++) {
         lcd.setCursor(i, 1);
         lcd.print("-");
       }
     }
   }
 
-  // Display Code after time
-  if (startTime && duration && charIndex <= code.length() && duration * charIndex / code.length() < millis() - startTime) {
+  // Display Code after time   
+  if (startTime > 0 && charIndex <= code.length() && (float)(duration * charIndex / code.length()) < millis() - startTime) {
 
     // Request write -- wait for response
-    Serial.write("Request ping");
+    Serial.write(ping);
     while (!Serial.available());
-    while (Serial.available()) {
-
-      if (Serial.readString() == "Request ping") {
+    
+    if (Serial.read() == ping) {
 
         // Display next
         lcd.setCursor(charIndex - 1, 1);
         lcd.print(code[charIndex - 1]);
 
         charIndex += 1;
-      }
-    }
+     }
   }
+
+  // Stop arduino
+  else if (startTime > 0 && charIndex > code.length()) exit(0);
 }
 
-void updateDisplay(String text, int line = 0) {
+void updateDisplay(String text, uint8_t line = 0) {
   lcd.setCursor(0, line);
 
   while (text.length() < 16) text += " ";
   lcd.print(text);
+}
+
+uint32_t readSerialLong() {
+  
+  byte input[4];
+  uint8_t index = 0;
+  
+  while (Serial.available() && index < 4) {
+    input[index] = Serial.read();
+
+    // Wait for next byte
+    index++;
+    delay(2);
+  }
+
+  return input[0] + (input[1] << 8) + (input[2] << 16) + (input[3] << 24);
 }
