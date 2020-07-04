@@ -34,18 +34,19 @@ void setup() {
   Serial.begin(2000000);
 
   // Serial communication active 
-  pinMode(serialConnected, INPUT);
+  pinMode(serialConnected, INPUT_PULLUP);
   
   // Turn on the blacklight and print a message.
   lcd.begin();
   updateDisplay("Defuse Code:");
   lcd.backlight();
+
+  // Restart code if connection status changes
+  attachInterrupt(digitalPinToInterrupt(serialConnected), checkConnection, CHANGE);
+  checkConnection();
 }
 
 void loop() {
-
-  // Check connection status
-  checkConnection();
 
   // Send starting data -- Request communication
   if (code.length() == 0 && currentConnection) {
@@ -88,7 +89,7 @@ void loop() {
 
     // Request write -- wait for response OR rebbot if disconnected
     Serial.write(ping);
-    while (!Serial.available() && code.length() != 0) checkConnection();
+    while (!Serial.available() && code.length() != 0);
     
     if (code.length() != 0 && Serial.read() == ping) {
       // Display next
@@ -124,7 +125,8 @@ uint32_t readSerialLong() {
 }
 
 void checkConnection() {
-  currentConnection = digitalRead(serialConnected);
+  // Reverse signal as 1 is disconnected and 0 connected
+  currentConnection = !digitalRead(serialConnected);
 
   if (restartOnConnected && currentConnection) reboot();
   else if (!currentConnection) restartOnConnected = true;
