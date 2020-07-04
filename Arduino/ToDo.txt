@@ -1,3 +1,0 @@
-common bugs
-	during startup having the defuser mounted -> data comes in multiple times overloading the screen
-	

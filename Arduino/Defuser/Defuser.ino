@@ -1,4 +1,4 @@
-/* ---------- Display ---------- */
+  /* ---------- Display ---------- */
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -61,7 +61,10 @@ void loop() {
 
     // Get code
     if (code.length() == 0) {
-      code = Serial.readString();
+      String input = Serial.readString();
+
+      // Get code length by checkup value at the beginning
+      code = input.substring(1, input[0] + 1);
 
       // Next request
       Serial.write(getTime);

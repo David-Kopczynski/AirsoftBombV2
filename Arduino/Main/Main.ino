@@ -61,6 +61,7 @@ void tryDefuseBomb();
 void explodeBomb();
 void toneWait(String type);
 void writeSerialLong(uint32_t data);
+void randomize();
 
 
 /* ---------- Runtime ---------- */
@@ -118,6 +119,9 @@ void setup() {
   lcd.begin();
   lcd.backlight();
 
+  // Random seed for code generation
+  randomize();
+
   // Standard code for speedsoft
   for (int i = 0; i < speedSoftCodeLength; i++) {
     code += possibleKeys[random(0, 9)];
@@ -149,7 +153,7 @@ void loop() {
 
 
   // Write data for defuser
-  while (Serial.available()) {
+  while (started && Serial.available()) {
 
     uint8_t input = Serial.read();
 
@@ -157,6 +161,8 @@ void loop() {
       char* buf = (char*) malloc(sizeof(char) * code.length() + 1);
       code.toCharArray(buf, code.length() + 1);
 
+      // Send checkup value
+      Serial.write(code.length());
       Serial.write(buf);
     }
     else if (input == getTime) writeSerialLong(defuseTimer);
@@ -403,4 +409,15 @@ void writeSerialLong(uint32_t data) {
   buf[3] = (data >> 24) & 255;
 
   Serial.write(buf, sizeof(buf));
+}
+
+void randomize() {
+  
+  int randomAnalogSeed = 0;
+  for (int i = 0; i < 16; i++) {
+    randomAnalogSeed += analogRead(i);
+  }
+
+  // set new seed
+  randomSeed(randomAnalogSeed);
 }
