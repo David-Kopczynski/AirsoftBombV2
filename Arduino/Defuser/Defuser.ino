@@ -1,6 +1,6 @@
   /* ---------- Display ---------- */
 #include <Wire.h>
-#include <LiquidCrystal_I2C.h>
+#include "src/Arduino-LiquidCrystal-I2C-library-master/LiquidCrystal_I2C.h"
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 
@@ -88,10 +88,12 @@ void loop() {
   if (startTime > 0 && charIndex <= code.length() && (float)(duration * charIndex / code.length()) < millis() - startTime) {
 
     // Request write -- wait for response OR rebbot if disconnected
-    Serial.write(ping);
-    while (!Serial.available() && code.length() != 0);
+    while (Serial.read() != ping && code.length() != 0) {
+      Serial.write(ping);
+      delay(1);
+    }
     
-    if (code.length() != 0 && Serial.read() == ping) {
+    if (code.length() != 0) {
       // Display next
       lcd.setCursor(charIndex - 1, 1);
       lcd.print(code[charIndex - 1]);
