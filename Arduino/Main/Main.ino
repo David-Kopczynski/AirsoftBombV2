@@ -54,6 +54,24 @@ int32_t waitForBeep = 0;
 String waitForBeepType = "";
 
 
+/* ---------- MultiThreading ---------- */
+#include "src/ArduinoThread-master/Thread.h"
+#include "src/ArduinoThread-master/ThreadController.h"
+
+// Thread functions
+void userInputThread();
+void updateDisplayDuringMenuThread();
+void timerThread();
+
+// Threads
+Thread* userInputThreadWorker = new Thread(userInputThread);
+Thread*updateDisplayDuringMenuThreadWorker = new Thread(updateDisplayDuringMenuThread);
+Thread* timerThreadWorker = new Thread(timerThread);
+
+// Controller
+ThreadController controll = ThreadController();
+
+
 /* ---------- Functions ---------- */
 void updateDisplay(String text, uint8_t line);
 void plantBomb();
@@ -113,6 +131,10 @@ void setup() {
   lcd.begin();
   lcd.backlight();
 
+  // Add Threads to controller
+  controll.add(userInputThreadWorker);
+  controll.add(updateDisplayDuringMenuThreadWorker);
+  
   // Random seed for code generation
   randomize();
 
@@ -124,98 +146,19 @@ void setup() {
 
 
 void loop() {
+  // Run threads
+  controll.run();
+}
 
-  // Important runtimes
+/* ---------- Threads ---------- */
+void userInputThread() {
+  
   char keyPress = keypad.getKey();
-
-  uint32_t deltaTime = millis() - lastMillis;
-  lastMillis = millis();
-
-  uint32_t timerCounting = millis() - startTime;
-
-
-  // Reset wait for tones
-  waitForBeep -= deltaTime;
-  if (waitForBeep < 0) {
-    waitForBeep = 0;
-    waitForBeepType = "";
-  }
-
-
-  // Clear all dump data
-  while (!started && Serial.available()) Serial.read();
-
-
-  // Write data for defuser
-  while (started && Serial.available()) {
-
-    uint8_t input = Serial.read();
-
-    if (input == getCode) {
-      char* buf = (char*) malloc(sizeof(char) * code.length() + 1);
-      code.toCharArray(buf, code.length() + 1);
-
-      // Send checkup value
-      Serial.write(code.length());
-      Serial.write(buf);
-    }
-    else if (input == getTime) writeSerialLong(defuseTimer);
-    else if (input == ping) Serial.write(ping);
-  }
-
-
-  // Timer runs out
-  if (started && timer < timerCounting) explodeBomb();
-
-
-  // Beep
-  if (started && timerCounting > waitForFirstBeep && sqrt((float)(timer - timerCounting) / timer) * bombBeepWait < deltaBeep) {
-
-    toneWait("Time");
-
-    deltaBeep = 0;
-  }
-  else deltaBeep += deltaTime;
-
-
-  /* ---------- Game Keypress Events ---------- */
 
   if (keyPress) toneWait("Press");
 
-  // Update display according to speedsoft status
-  if (!started) {
-    
-    if (speedsoftButton) {
-      updateDisplay("Bomb Code:", 0);
-    }
-    else {
-
-      // Set by current
-      switch (current) {
-
-        case 0: // Timer input
-          updateDisplay("Bomb Timer:", 0);
-          break;
-
-        case 1: // Defuse time
-          updateDisplay("Bomb Defuse:", 0);
-          break;
-
-        case 2: // Max fails
-          updateDisplay("Max Fails:", 0);
-          break;
-
-        case 3: // Fail Penalty
-          updateDisplay("Fail Penalty:", 0);
-          break;
-
-        case 4: // Code input
-          updateDisplay("Bomb Code:", 0);
-          break;
-      }
-    }
-  }
-
+  /* ---------- Game Keypress Events ---------- */
+  
   // Check speedsoft
   if (isSpeedsoft || speedsoftButton) {
 
@@ -307,7 +250,91 @@ void loop() {
   }
 }
 
+void updateDisplayDuringMenuThread() {
+  
+  // Update display according to speedsoft status
+  if (speedsoftButton) {
+    updateDisplay("Bomb Code:", 0);
+  }
+  else {
 
+    // Set by current
+    switch (current) {
+
+      case 0: // Timer input
+        updateDisplay("Bomb Timer:", 0);
+        break;
+
+      case 1: // Defuse time
+        updateDisplay("Bomb Defuse:", 0);
+        break;
+
+      case 2: // Max fails
+        updateDisplay("Max Fails:", 0);
+        break;
+
+      case 3: // Fail Penalty
+        updateDisplay("Fail Penalty:", 0);
+        break;
+
+      case 4: // Code input
+        updateDisplay("Bomb Code:", 0);
+        break;
+    }
+  }
+}
+
+void timerThread() {
+  
+  // Important runtimes
+  uint32_t deltaTime = millis() - lastMillis;
+  lastMillis = millis();
+
+  uint32_t timerCounting = millis() - startTime;
+
+
+  // Reset wait for tones
+  waitForBeep -= deltaTime;
+  if (waitForBeep < 0) {
+    waitForBeep = 0;
+    waitForBeepType = "";
+  }
+
+
+  // Write data for defuser
+  while (Serial.available()) {
+
+    uint8_t input = Serial.read();
+
+    if (input == getCode) {
+      char* buf = (char*) malloc(sizeof(char) * code.length() + 1);
+      code.toCharArray(buf, code.length() + 1);
+
+      // Send checkup value
+      Serial.write(code.length());
+      Serial.write(buf);
+    }
+    else if (input == getTime) writeSerialLong(defuseTimer);
+    else if (input == ping) Serial.write(ping);
+  }
+
+
+  // Timer runs out
+  if (timer < timerCounting) explodeBomb();
+
+
+  // Beep
+  if (timerCounting > waitForFirstBeep && sqrt((float)(timer - timerCounting) / timer) * bombBeepWait < deltaBeep) {
+
+    toneWait("Time");
+
+    deltaBeep = 0;
+  }
+  else deltaBeep += deltaTime;
+}
+
+
+/* ---------- Functions ---------- */
 void updateDisplay(String text, uint8_t line) {
   lcd.setCursor(0, line);
 
@@ -324,6 +351,10 @@ void plantBomb() {
 
   started = true;
   startTime = millis();
+
+  // Remove display updater from threads -- add timer instead
+  controll.remove(updateDisplayDuringMenuThread);
+  controll.add(timerThreadWorker);
 }
 
 void tryDefuseBomb() {
@@ -337,6 +368,7 @@ void tryDefuseBomb() {
     updateDisplay("", 1);
 
     // Wait for playback and stop
+    controll.clear();
     delay(10000);
     exit(0);
   }
@@ -360,6 +392,7 @@ void explodeBomb() {
   updateDisplay("", 1);
 
   // Wait for playback and stop
+  controll.clear();
   delay(10000);
   exit(0);
 }

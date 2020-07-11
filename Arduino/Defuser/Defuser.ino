@@ -1,4 +1,4 @@
-  /* ---------- Display ---------- */
+/* ---------- Display ---------- */
 #include <Wire.h>
 #include "src/Arduino-LiquidCrystal-I2C-library-master/LiquidCrystal_I2C.h"
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -58,7 +58,7 @@ void loop() {
   }
 
   // Get Data
-  if (Serial.available()) {
+  while (Serial.available()) {
 
     // Get code
     if (code.length() == 0) {
@@ -82,6 +82,8 @@ void loop() {
         lcd.print("-");
       }
     }
+    // Flush data
+    else Serial.read();
   }
 
   // Display Code after time   
