@@ -90,12 +90,12 @@ void loop() {
   if (startTime > 0 && charIndex <= code.length() && (float)(duration * charIndex / code.length()) < millis() - startTime) {
 
     // Request write -- wait for response OR rebbot if disconnected
-    while (Serial.read() != ping && code.length() != 0) {
+    while (Serial.read() != ping && code.length() != 0 && currentConnection) {
       Serial.write(ping);
       delay(1);
     }
     
-    if (code.length() != 0) {
+    if (code.length() != 0 && currentConnection) {
       // Display next
       lcd.setCursor(charIndex - 1, 1);
       lcd.print(code[charIndex - 1]);
@@ -145,4 +145,7 @@ void reboot() {
   charIndex = 1;
   restartOnConnected = false;
   currentConnection = false;
+
+  // Reload 
+  checkConnection();
 }
