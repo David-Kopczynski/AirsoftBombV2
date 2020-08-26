@@ -104,6 +104,7 @@ uint8_t speedSoftCodeLength = 6;
 char possibleKeys[10] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
 bool isSpeedsoft = false;
 bool speedsoftButton = false;
+uint8_t speedsoftPin = 30; 
 
 // Game Data -- fails
 uint8_t fails = 0;
@@ -131,6 +132,9 @@ void setup() {
   lcd.begin();
   lcd.backlight();
 
+  // PinModes
+  pinMode(speedsoftPin, INPUT_PULLUP);
+
   // Add Threads to controller
   controll.add(userInputThreadWorker);
   controll.add(updateDisplayDuringMenuThreadWorker);
@@ -155,102 +159,108 @@ void userInputThread() {
   
   char keyPress = keypad.getKey();
 
-  if (keyPress) toneWait("Press");
+  if (keyPress) {
 
-  /* ---------- Game Keypress Events ---------- */
+    toneWait("Press");
+
+     /* ---------- Game Keypress Events ---------- */
   
-  // Check speedsoft
-  if (isSpeedsoft || speedsoftButton) {
-
-    if (isDigit(keyPress) && printDisplay.length() < speedSoftCodeLength) updateDisplay(printDisplay += keyPress, 1);
-    else if (keyPress == '*') {
-
-      if (printDisplay.length() > 0) {
-        printDisplay.remove(printDisplay.length() - 1);
-        updateDisplay(printDisplay, 1);
+    // Check speedsoft
+    if (isSpeedsoft || speedsoftButton) {
+  
+      if (isDigit(keyPress) && printDisplay.length() < speedSoftCodeLength) updateDisplay(printDisplay += keyPress, 1);
+      else if (keyPress == '*') {
+  
+        if (printDisplay.length() > 0) {
+          printDisplay.remove(printDisplay.length() - 1);
+          updateDisplay(printDisplay, 1);
+        }
       }
-    }
-    else if (keyPress == '#') {
-
-      if (!started) {
-
-        // Start game
-        if (printDisplay.length() > 0) code = printDisplay;
-
-        // Set bomb to start
-        isSpeedsoft = true;
-        plantBomb();
-      }
-      else tryDefuseBomb();
-
-      // Clear current window
-      printDisplay = "";
-      updateDisplay(printDisplay, 1);
-    }
-  }
-
-  // Normal round
-  else { 
-
-    if (isDigit(keyPress) && printDisplay.length() < maxLength) updateDisplay(printDisplay += keyPress, 1);
-    else if (keyPress == '*') {
-
-      if (printDisplay.length() > 0) {
-        printDisplay.remove(printDisplay.length() - 1);
-        updateDisplay(printDisplay, 1);
-      }
-    }
-    else if (keyPress == '#') {
-
-      switch (current) {
-
-        case 0: // Timer input
-          if (printDisplay.length() > 0) timer = printDisplay.toInt() * 1000 * 60; // Time input as minutes
-          break;
-
-        case 1: // Defuse time
-          if (printDisplay.length() > 0) defuseTimer = printDisplay.toInt() * 1000; // Time input as seconds
-          break;
-
-        case 2: // Max fails
-          if (printDisplay.length() > 0) maxFails = printDisplay.toInt();
-          else {
-            // Set value which cannot take place
-            maxFails = -1;
-
-            // Skip penalty
-            current += 1;
-          }
-          break;
-
-        case 3: // Fail Penalty
-          if (printDisplay.length() > 0) failPenalty = printDisplay.toInt() * 1000; // Penalty input as seconds
-          break;
-
-        case 4: // Code input
+      else if (keyPress == '#') {
+  
+        if (!started) {
+  
+          // Start game
           if (printDisplay.length() > 0) code = printDisplay;
-
+  
+          // Set bomb to start
+          isSpeedsoft = true;
           plantBomb();
-          current += 1;
-          break;
-
-        // Input for bomb
-        default:
-          tryDefuseBomb();
-          break;
+        }
+        else tryDefuseBomb();
+  
+        // Clear current window
+        printDisplay = "";
+        updateDisplay(printDisplay, 1);
       }
-
-      // Next input
-      if (!started) current += 1;
-
-      // Clear current window
-      printDisplay = "";
-      updateDisplay(printDisplay, 1);
+    }
+  
+    // Normal round
+    else { 
+  
+      if (isDigit(keyPress) && printDisplay.length() < maxLength) updateDisplay(printDisplay += keyPress, 1);
+      else if (keyPress == '*') {
+  
+        if (printDisplay.length() > 0) {
+          printDisplay.remove(printDisplay.length() - 1);
+          updateDisplay(printDisplay, 1);
+        }
+      }
+      else if (keyPress == '#') {
+  
+        switch (current) {
+  
+          case 0: // Timer input
+            if (printDisplay.length() > 0) timer = printDisplay.toInt() * 1000 * 60; // Time input as minutes
+            break;
+  
+          case 1: // Defuse time
+            if (printDisplay.length() > 0) defuseTimer = printDisplay.toInt() * 1000; // Time input as seconds
+            break;
+  
+          case 2: // Max fails
+            if (printDisplay.length() > 0) maxFails = printDisplay.toInt();
+            else {
+              // Set value which cannot take place
+              maxFails = -1;
+  
+              // Skip penalty
+              current += 1;
+            }
+            break;
+  
+          case 3: // Fail Penalty
+            if (printDisplay.length() > 0) failPenalty = printDisplay.toInt() * 1000; // Penalty input as seconds
+            break;
+  
+          case 4: // Code input
+            if (printDisplay.length() > 0) code = printDisplay;
+  
+            plantBomb();
+            current += 1;
+            break;
+  
+          // Input for bomb
+          default:
+            tryDefuseBomb();
+            break;
+        }
+  
+        // Next input
+        if (!started) current += 1;
+  
+        // Clear current window
+        printDisplay = "";
+        updateDisplay(printDisplay, 1);
+      }
     }
   }
 }
 
 void updateDisplayDuringMenuThread() {
+
+  // Update speedsoft button
+  speedsoftButton = !digitalRead(speedsoftPin);
   
   // Update display according to speedsoft status
   if (speedsoftButton) {
@@ -353,8 +363,13 @@ void plantBomb() {
   startTime = millis();
 
   // Remove display updater from threads -- add timer instead
-  controll.remove(updateDisplayDuringMenuThread);
+  controll.remove(updateDisplayDuringMenuThreadWorker);
   controll.add(timerThreadWorker);
+
+  // Prevent sound overwrite -- data gets erased somehow?
+  updateDisplay("", 1);
+  delay(waitForFirstBeep);
+  
 }
 
 void tryDefuseBomb() {
@@ -400,31 +415,32 @@ void explodeBomb() {
 void toneWait(String type) {
 
   // Break function -- waiting for starting
-  if (waitForBeepType == "Start") return;
+  if (waitForBeepType != "Start") {
 
-  if (type == "Time") {
+    if (type == "Time") {
 
-    if (waitForBeepType != "Time") delay(waitForBeep);
-    tone(speakerPinDigital, bombBeep, bombBeepDuration);
-
-    waitForBeep = bombBeepDuration;
-    waitForBeepType = "Time";
-  }
-  else if (type == "Press") {
-
-    delay(waitForBeep);
-    tone(speakerPinDigital, keyBeep, keyBeepDuration);
-
-    waitForBeep = keyBeepDuration;
-    waitForBeepType = "Press";
-  }
-  else if (type == "Wrong") {
-
-    delay(waitForBeep);
-    tone(speakerPinDigital, wrongBeep, wrongBeepDuration);
-
-    waitForBeep = wrongBeepDuration;
-    waitForBeepType = "Wrong";
+      if (waitForBeepType != "Time") delay(waitForBeep);
+      tone(speakerPinDigital, bombBeep, bombBeepDuration);
+  
+      waitForBeep = bombBeepDuration;
+      waitForBeepType = "Time";
+    }
+    else if (type == "Press") {
+  
+      delay(waitForBeep);
+      tone(speakerPinDigital, keyBeep, keyBeepDuration);
+  
+      waitForBeep = keyBeepDuration;
+      waitForBeepType = "Press";
+    }
+    else if (type == "Wrong") {
+  
+      delay(waitForBeep);
+      tone(speakerPinDigital, wrongBeep, wrongBeepDuration);
+  
+      waitForBeep = wrongBeepDuration;
+      waitForBeepType = "Wrong";
+    } 
   }
 }
 
