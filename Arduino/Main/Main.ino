@@ -65,11 +65,11 @@ void timerThread();
 
 // Threads
 Thread* userInputThreadWorker = new Thread(userInputThread);
-Thread*updateDisplayDuringMenuThreadWorker = new Thread(updateDisplayDuringMenuThread);
+Thread* updateDisplayDuringMenuThreadWorker = new Thread(updateDisplayDuringMenuThread);
 Thread* timerThreadWorker = new Thread(timerThread);
 
 // Controller
-ThreadController controll = ThreadController();
+ThreadController controller = ThreadController();
 
 
 /* ---------- Functions ---------- */
@@ -136,8 +136,8 @@ void setup() {
   pinMode(speedsoftPin, INPUT_PULLUP);
 
   // Add Threads to controller
-  controll.add(userInputThreadWorker);
-  controll.add(updateDisplayDuringMenuThreadWorker);
+  controller.add(userInputThreadWorker);
+  controller.add(updateDisplayDuringMenuThreadWorker);
   
   // Random seed for code generation
   randomize();
@@ -151,7 +151,7 @@ void setup() {
 
 void loop() {
   // Run threads
-  controll.run();
+  controller.run();
 }
 
 /* ---------- Threads ---------- */
@@ -363,13 +363,12 @@ void plantBomb() {
   startTime = millis();
 
   // Remove display updater from threads -- add timer instead
-  controll.remove(updateDisplayDuringMenuThreadWorker);
-  controll.add(timerThreadWorker);
+  controller.remove(updateDisplayDuringMenuThreadWorker);
+  controller.add(timerThreadWorker);
 
   // Prevent sound overwrite -- data gets erased somehow?
   updateDisplay("", 1);
   delay(waitForFirstBeep);
-  
 }
 
 void tryDefuseBomb() {
@@ -383,7 +382,7 @@ void tryDefuseBomb() {
     updateDisplay("", 1);
 
     // Wait for playback and stop
-    controll.clear();
+    controller.clear();
     delay(10000);
     exit(0);
   }
@@ -404,10 +403,12 @@ void explodeBomb() {
 
   startPlayback(terroristsWin, sizeof(terroristsWin));
   updateDisplay("Terrorists Win", 0);
-  updateDisplay("", 1);
+
+  // Show code for attackers
+  updateDisplay(code, 1);
 
   // Wait for playback and stop
-  controll.clear();
+  controller.clear();
   delay(10000);
   exit(0);
 }
