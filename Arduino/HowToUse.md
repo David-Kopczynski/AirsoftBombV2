@@ -1,6 +1,6 @@
 When starting all essential values have been declared for speedsoft:
--Timer at 40 seconds 
--Defuser at 3 seconds 
+-Timer at 15 minutes
+-Defuser at 5 seconds 
 -Code length at 6 characters
 -One input error
 -And as a result, no penalty

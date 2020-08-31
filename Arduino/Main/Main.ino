@@ -92,8 +92,8 @@ String printDisplay = "";
 uint8_t maxLength = 16;
 
 // Inputs
-uint32_t timer = 40000;
-uint32_t defuseTimer = 3000;
+uint32_t timer = 900000; // 15 min
+uint32_t defuseTimer = 5000;
 String code; // Set during initialization
 
 // Static
@@ -265,6 +265,10 @@ void updateDisplayDuringMenuThread() {
   // Update display according to speedsoft status
   if (speedsoftButton) {
     updateDisplay("Bomb Code:", 0);
+
+    // Reset displayed length of code to maxLength
+    while (speedSoftCodeLength < printDisplay.length()) printDisplay.remove(printDisplay.length() - 1);
+    updateDisplay(printDisplay, 1);
   }
   else {
 
